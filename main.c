@@ -17,12 +17,15 @@ static void on_reshape(int, int);
 static void on_timer(int);
 
 static int timer_active;                // Fleg koji odredjuje stanje tajmera
-static float x_basket = 10;   // Trenutne koordinate kosa
+static float x_basket = 10;             // Trenutne koordinate kosa
 static float x_curr = 0, y_curr = 1;    // Trenutne koordinate lopte
 static float radius = 0.5;              // Poluprecnik lopte
 static float v_b = 0.15;                // Vektorska brzina kretanja obruca
 static int animation = 1;               // Fleg koji odredjuje status animacije
 static float v_y = 0.1;                 // Vektorska brzina kretanja lopte
+static float jump = 1;                  // Odskok lopte na kraju
+static int flag = 0;                    // Fleg koji sluzi da se broj poena poveca samo jednom ako lopta prodje kroz obruc
+static int bucket = 0;                  // Poeni
 
 int main(int argc, char* argv[])
 {
@@ -80,6 +83,9 @@ static void on_keyboard(unsigned char key, int x, int y)
                         x_basket = 10;
                         timer_active = 0;
                         animation = 1;
+                        bucket = 0;
+                        jump = 1;
+                        glClearColor(1, 1, 1, 0);
                         break;
                 case 'm':
                 case 'M':
@@ -110,6 +116,9 @@ static void on_timer(int value)
         if(value != TIMER_ID)
                 return;
         
+//      Pomocna promenljiva za povecavanje broja poena
+        int b = 0;
+        
 //      Brzina kojom lopta pada
         v_y -= .1;
         if(v_y <= -.3)
@@ -121,6 +130,50 @@ static void on_timer(int value)
         x_basket -= v_b;
         if(x_basket <= -10)
                 x_basket = 10;
+        
+//      Uslov da lopta ne ode ispod poda
+        if(y_curr <= -(4.25-radius))
+                y_curr = -(4.25-radius);
+        
+//      Uslov da je kraj igre ako udari u plafon
+        if(y_curr >= (5.1-radius)){
+                v_y = 0;
+                glClearColor(.7, .8, .8, 0);
+                animation = 0;
+        }
+
+//      Uslov da je kraj igre ako udari u pod
+        if(y_curr <= -(4.25-radius)){
+                v_y += jump;
+                glClearColor(.7, .8, .8, 0);
+                animation = 0;
+                jump -= 0.2;
+        }
+
+//      Uslov da se lopta ne pojavljuje ako je kraj i lopta se ne vidi na ekranu
+        if(animation == 0 && x_basket >= 7){
+                x_basket = 10;
+        }
+        
+//      Uslov da se lopta ne pojavljuje ako je kraj i lopta se ne vidi na ekranu
+        if(animation == 0 && x_basket <= -10){
+                timer_active = 0;
+        }
+        
+//      Povecava se broj poena ako lopta prodje kroz obruc
+        if((x_basket < .5 && x_basket > -.5) && (y_curr < .4 && y_curr > -.4) && animation != 0){
+                if(flag == 0)
+                        bucket += 1;
+                b += 1;
+        }
+        
+//      Provera koja sluzi da se broj poena uveca samo jednom ako prodje lopta kroz obruc
+        if(b > 0)
+                flag = 1;
+        
+        if(x_basket > 7){
+                flag = 0;
+        }
         
         glutPostRedisplay();
         
@@ -163,6 +216,18 @@ static void on_display(void)
                 glTranslatef(x_basket, 0, 0);
                 glColor3f(.7, .1, 0);
                 glutSolidTorus(.1, 1, 100, 100);
+        glPopMatrix();
+        
+//      Bitmapa za broj poena
+        glPushMatrix();
+        glScalef(1.8, 1.8, 0);
+        glColor3f(.7, .3, .7);
+        glRasterPos3f(2.88, 3, 0);
+        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (bucket/100%10) +'0');
+        glRasterPos3f(2.95, 3, 0);
+        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (bucket/10%10) +'0');
+        glRasterPos3f(3.02, 3, 0);
+        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (bucket%10) +'0');
         glPopMatrix();
         
         glutSwapBuffers();
